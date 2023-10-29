@@ -115,8 +115,8 @@ if __name__ == "__main__":
     model.load('two_english')
 
     # # Print the loaded transition probabilities
-    # print("Transition Probabilities:")
-    # print(model.transitions)
+    print("Transition Probabilities:")
+    print(model.transitions)
     # for state_from, transitions in model.transitions.items():
     #     for state_to, probability in transitions.items():
     #         print(f"Transition from {state_from} to {state_to}: {probability}")
