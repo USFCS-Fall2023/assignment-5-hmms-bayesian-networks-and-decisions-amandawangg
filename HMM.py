@@ -88,9 +88,54 @@ class HMM:
 
             current_state = next_state
 
-        return Observation(observation_states, observation_outputs)
+        # return Observation(observation_states, observation_outputs)
+        return observation_outputs
 
+    def forward(self, observations):
+        # Create a t+1 x s matrix M
+        # t is the number of timesteps/observations
+        # s is the number of states
 
+        t = len(observations)
+        states = list(self.transitions.keys())
+        s = len(states)
+
+        # Create a dictionary to map state names to their numerical indices.
+        state_to_index = {state: i for i, state in enumerate(states)}
+
+        # Initialize the forward matrix M with zeros using numpy
+        M = np.zeros((t + 1, s))
+
+        # Set up the initial probabilities - Initialize the start state '#' with probability 1.
+        M[0][state_to_index['#']] = 1.0
+
+        # Iterate through each subsequent timestep for each state and propagate forward
+        # multiply the probability of reaching that state from
+        # any prior state by the probability of seeing this observation given that state.
+        for i in range(t):
+            for s1 in states:
+                state_to_idx = state_to_index[s1]
+                # Calculate the forward probability for each state at time step i+1.
+                for s2 in states:
+                    state_from_idx = state_to_index[s2]
+
+                    transition_prob = self.transitions[s2].get(s1, 0.0) # T[s2,s]
+
+                    # for initial
+                    if i == 0 and s2 == '#':
+                        emission_prob = 1.0
+                    else:
+                        emission_prob = self.emissions.get(s2, {}).get(observations[i], 0.0) # E[O[i],s2]
+
+                    # PSEUDO: sum += M[s2, i-1]*T[s2,s]*E[O[i],s2]
+                    M[i + 1][state_to_idx] += M[i][state_from_idx] * transition_prob * emission_prob
+
+        # Calculate the final state with the highest probability
+        # print(M[t])
+        final_state_idx = np.argmax(M[t])
+        final_state = states[final_state_idx]
+
+        return final_state
 
     ## you do this: Implement the Viterbi alborithm. Given an Observation (a list of outputs or emissions)
     ## determine the most likely sequence of states.
@@ -100,11 +145,13 @@ class HMM:
         find and return the state sequence that generated
         the output sequence, using the Viterbi algorithm.
         """
+        pass
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Hidden Markov Model (HMM) Example")
+    parser = argparse.ArgumentParser(description="Hidden Markov Model (HMM)")
     parser.add_argument("model_file", help="Path to the model file (without extension)")
     parser.add_argument("--generate", type=int, help="Generate a random observation of the specified length")
+    parser.add_argument("--forward", type=str, help="Calculate the forward probability of a sequence of observations")
 
     args = parser.parse_args()
 
@@ -112,11 +159,11 @@ if __name__ == "__main__":
 
     # PART 1 ---------------------------------------------
     # Load transition and emission probabilities from 'two_english'
-    model.load('two_english')
+    # model.load('two_english')
 
     # # Print the loaded transition probabilities
-    print("Transition Probabilities:")
-    print(model.transitions)
+    # print("Transition Probabilities:")
+    # print(model.transitions)
     # for state_from, transitions in model.transitions.items():
     #     for state_to, probability in transitions.items():
     #         print(f"Transition from {state_from} to {state_to}: {probability}")
@@ -132,12 +179,15 @@ if __name__ == "__main__":
     # Load transition and emission probabilities from the specified model file
     model.load(args.model_file)
 
-    if args.generate is not None:
+    if args.generate:
         n = args.generate  # Length of the observation
         generated_observation = model.generate(n)
         print("Generated Observation:")
         print(generated_observation)
         # Was able to run with "python3 hmm.py partofspeech.browntags.trained --generate 20"
 
-
-
+    ## PART 3 foward()
+    if args.forward:
+        observation_sequence = args.forward.split()  # Convert observation string to a list
+        final_state = model.forward(observation_sequence)
+        print("Most likely final state:", final_state)
