@@ -88,8 +88,8 @@ class HMM:
 
             current_state = next_state
 
-        # return Observation(observation_states, observation_outputs)
-        return observation_outputs
+        return Observation(observation_states, observation_outputs)
+        # return observation_outputs
 
     def forward(self, observations):
         # Create a t+1 x s matrix M
@@ -145,13 +145,62 @@ class HMM:
         find and return the state sequence that generated
         the output sequence, using the Viterbi algorithm.
         """
-        pass
+        t = len(observation)
+        states = list(self.transitions.keys())
+        s = len(states)
+
+        state_to_index = {state: i for i, state in enumerate(states)}
+
+        # Viterbi matrix
+        V = np.zeros((t, s))
+        backpointer = np.zeros((t, s), dtype=int)
+
+        # the first column of V based on the initial probabilities
+        for s1 in states:
+            state_to_idx = state_to_index[s1]
+            emission_prob = self.emissions.get(s1, {}).get(observation[0], 0.0)
+            V[0][state_to_idx] = 1.0 * emission_prob  # Initialize with the emission probability
+
+        # fill in the viterbi and backpointer matrix
+        for i in range(1, t):
+            for s1 in states:
+                state_to_idx = state_to_index[s1]
+                max_probability = -1.0
+                max_state = ""
+
+                for s2 in states:
+                    state_from_index = state_to_index[s2]
+                    transition_prob = self.transitions[s2].get(s1, 0.0)
+                    emission_prob = self.emissions.get(s1, {}).get(observation[i], 0.0)
+
+                    prob = V[i - 1][state_from_index] * transition_prob * emission_prob
+
+                    if prob > max_probability:
+                        max_probability = prob
+                        max_state = s2
+
+                V[i][state_to_idx] = max_probability
+                backpointer[i][state_to_idx] = state_to_index[max_state]
+
+        # Find the highest probability state
+        final_state_idx = np.argmax(V[-1])
+        final_state = states[final_state_idx]
+
+        state_sequence = [final_state]
+        current_state_idx = final_state_idx
+
+        for i in range(t - 1, 0, -1):
+            current_state_idx = backpointer[i][current_state_idx]
+            state_sequence.insert(0, states[current_state_idx])
+
+        return state_sequence
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Hidden Markov Model (HMM)")
     parser.add_argument("model_file", help="Path to the model file (without extension)")
     parser.add_argument("--generate", type=int, help="Generate a random observation of the specified length")
     parser.add_argument("--forward", type=str, help="Calculate the forward probability of a sequence of observations")
+    parser.add_argument("--viterbi", type=str, help="Use the Viterbi algorithm to find the most likely state sequence")
 
     args = parser.parse_args()
 
@@ -191,3 +240,9 @@ if __name__ == "__main__":
         observation_sequence = args.forward.split()  # Convert observation string to a list
         final_state = model.forward(observation_sequence)
         print("Most likely final state:", final_state)
+
+    if args.viterbi:
+        observation_sequence = args.viterbi.split()
+        state_sequence = model.viterbi(observation_sequence)
+        print("VITERBI: Most likely state sequence:", ' '.join(state_sequence))
+        # Was able to run with "python3 hmm.py partofspeech.browntags.trained --viterbi ambiguous_sents.obs"
