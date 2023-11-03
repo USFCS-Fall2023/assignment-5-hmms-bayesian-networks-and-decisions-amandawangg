@@ -118,3 +118,6 @@ print("Given that the car doesn't move, the probability of the ignition failing 
 q5 = car_infer.query(variables=["Starts"], evidence={"Radio": "turns on", "Gas": "Full"})
 print(q5)
 print("The probability that the car starts if the radio works and it has gas in it: 0.7212\n")
+
+q_key_present = car_infer.query(variables=["KeyPresent"])
+print(q_key_present)
